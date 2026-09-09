@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cricket Scorebook</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#172033}
+header{background:#0b5d3b;color:white;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+header h1{margin:0;font-size:24px}.badge{background:#083f29;padding:7px 12px;border-radius:20px;font-size:13px}
+.container{max-width:1250px;margin:auto;padding:18px}
+.card{background:white;border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 2px 10px #0000000d}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label{font-size:12px;color:#667085;font-weight:bold;display:block;margin-bottom:5px}
+input,select,button{width:100%;padding:10px;border:1px solid #d7dce5;border-radius:8px;font-size:14px}
+button{cursor:pointer;font-weight:bold;background:#0b5d3b;color:white;border:0}
+button.secondary{background:#eaf4ef;color:#0b5d3b}.danger{background:#c62828}
+.score{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
+.big{font-size:34px;font-weight:800}.stat{background:#f7faf8;padding:12px;border-radius:10px}.stat small{display:block;color:#667085}
+.actions{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px}
+.actions button{font-size:16px;padding:14px 5px}.run{background:#eef6ff;color:#174ea6}
+.wicket{background:#8b1e1e}.wide{background:#805a00}.noball{background:#7040a0}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #e8ebf0;text-align:center}th{background:#f5f7fa}
+.left{text-align:left}
+.tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}.tabs button{width:auto;padding:9px 16px}.tabs .active{background:#0b5d3b}
+.hidden{display:none}.pill{display:inline-block;padding:4px 8px;border-radius:12px;background:#eef2f7}
+#overs{max-height:300px;overflow:auto}
+
+.summary-head{background:#0b9b82;color:white;padding:11px 14px;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center}
+.summary-team{font-size:16px;font-weight:800}.summary-score{font-size:17px;font-weight:800}.summary-score span{font-size:13px;font-weight:600}
+.summary-section{margin-top:14px}.summary-section h3{margin:0;background:#ececec;padding:8px;font-size:15px}
+.summary-section table{font-size:13px}.summary-section th{background:#ececec}
+.summary-extras,.summary-total,.summary-yet{display:flex;justify-content:space-between;gap:12px;padding:10px 8px;border-bottom:1px solid #e5e5e5}
+.summary-total{font-size:15px}.summary-yet{align-items:flex-start}.summary-yet span{color:#1769d1;line-height:1.5}
+.table-wrap{overflow-x:auto}
+@media(max-width:900px){#playerInputs{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){#playerInputs{grid-template-columns:repeat(2,1fr)}.score{grid-template-columns:1fr 1fr}.actions{grid-template-columns:repeat(4,1fr)}header h1{font-size:20px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏏 Cricket Scorebook</h1>
+  <span class="badge">Live Scoring • History • Batting • Bowling</span>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="grid">
+      <div>
+        <label>TEAM A</label>
+        <input id="teamA" value="Team A" oninput="changeTeamName('A',this.value)">
+      </div>
+      <div>
+        <label>TEAM B</label>
+        <input id="teamB" value="Team B" oninput="changeTeamName('B',this.value)">
+      </div>
+      <div><label>OVERS</label><input id="maxOvers" type="number" value="20" min="1"></div>
+      <div><label>STRIKER</label><select id="striker"></select></div>
+      <div><label>NON-STRIKER</label><select id="nonStriker"></select></div>
+      <div><label>BOWLER</label><select id="bowler"></select></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>👥 Player Names (22 Players)</h3><p style="margin:4px 0 10px;color:#666;font-size:13px">Team A = Player 1–11 &nbsp; | &nbsp; Team B = Player 12–22. Type names directly; they save automatically.</p>
+    <p style="margin:0 0 10px;color:#667085;font-size:12px">Edit all 22 player names. Team A = Player 1–11 | Team B = Player 12–22. Changes update dropdowns and scorecards.</p>
+    <div id="playerInputs" class="grid" style="grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px"></div>
+  </div>
+
+  <div class="card score">
+    <div class="stat"><small>SCORE</small><span class="big" id="score">0/0</span></div>
+    <div class="stat"><small>OVERS</small><b id="oversText">0.0</b></div>
+    <div class="stat"><small>CRR</small><b id="crr">0.00</b></div>
+    <div class="stat"><small>LAST BALL</small><b id="lastBall">-</b></div>
+  </div>
+
+  <div class="card">
+    <h3>Scoring</h3>
+    <div class="actions">
+      <button class="run" onclick="addBall(0)">DOT</button>
+      <button class="run" onclick="addBall(1)">1 RUN</button>
+      <button class="run" onclick="addBall(2)">2 RUN</button>
+      <button class="run" onclick="addBall(3)">3 RUN</button>
+      <button class="run" onclick="addBall(4)">4 RUN</button>
+      <button class="run" onclick="addBall(6)">6 RUN</button>
+      <button class="wide" onclick="addExtra('WD')">WIDE</button>
+      <button class="noball" onclick="addExtra('NB')">NO BALL</button>
+      <button onclick="addExtra('B')">BYE</button>
+      <button onclick="addExtra('LB')">LEG BYE</button>
+      <button class="wicket" onclick="addWicket()">WICKET</button>
+      <button class="secondary" onclick="undo()">UNDO</button>
+      <button class="danger" onclick="resetMatch()">RESET</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="active" onclick="showTab('bat',this)">Batting</button>
+    <button onclick="showTab('bowl',this)">Bowling</button>
+    <button onclick="showTab('ball',this)">Ball-by-Ball</button>
+    <button onclick="showTab('history',this)">Match History</button>
+    <button onclick="showTab('summary',this)">🏏 Cricket Summary</button>
+  </div>
+
+  <div id="bat" class="card">
+    <h3>🏏 Batting Scorecard</h3>
+    <table><thead><tr><th class="left">Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th><th>Status</th></tr></thead>
+    <tbody id="batBody"></tbody></table>
+  </div>
+
+  <div id="bowl" class="card hidden">
+    <h3>🎯 Bowling Scorecard</h3>
+    <table><thead><tr><th class="left">Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Eco</th></tr></thead>
+    <tbody id="bowlBody"></tbody></table>
+  </div>
+
+  <div id="ball" class="card hidden">
+    <h3>📋 Ball-by-Ball</h3>
+    <div id="overs"></div>
+  </div>
+
+  <div id="summary" class="card hidden">
+    <div class="summary-head">
+      <div>
+        <div class="summary-team" id="summaryTeam">Team A 1st Innings</div><div style="font-size:12px;margin-top:3px;opacity:.9" id="summaryTeams">Team A vs Team B</div>
+        <div class="summary-score" id="summaryScore">0/0 <span>(0.0 Ov)</span></div>
+      </div>
+    </div>
+
+    <div class="summary-section">
+      <h3>Batting</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="left">Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead>
+          <tbody id="summaryBatBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="summary-extras">
+      <b>Extras</b>
+      <span id="summaryExtras">0 (b 0, lb 0, w 0, nb 0, p 0)</span>
+    </div>
+
+    <div class="summary-total">
+      <b>Total</b>
+      <b id="summaryTotal">0/0 <span>(0.0 Overs, RR: 0.00)</span></b>
+    </div>
+
+    <div class="summary-yet">
+      <b>Yet to Bat</b>
+      <span id="summaryYetToBat">-</span>
+    </div>
+
+    <div class="summary-section">
+      <h3>Bowling</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="left">Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>NB</th><th>WD</th><th>ECO</th></tr></thead>
+          <tbody id="summaryBowlBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="summary-section">
+      <h3>Fall of Wickets</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="left">Batter</th><th>Score</th><th>Over</th></tr></thead>
+          <tbody id="fallBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="history" class="card hidden">
+    <h3>🗂 Match History</h3>
+    <table><thead><tr><th>Time</th><th>Event</th><th>Score</th><th>Overs</th></tr></thead>
+    <tbody id="historyBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+let players = [
+  "Player 1","Player 2","Player 3","Player 4","Player 5","Player 6","Player 7","Player 8","Player 9","Player 10","Player 11",
+  "Player 12","Player 13","Player 14","Player 15","Player 16","Player 17","Player 18","Player 19","Player 20","Player 21","Player 22"
+];
+let batters={}, bowlers={}, balls=[], history=[], fallWickets=[], total=0, wickets=0, legalBalls=0, currentOver=[];
+let striker="Player 1", nonStriker="Player 2", bowler="Player 3";
+let teamAName="Team A", teamBName="Team B";
+
+players.forEach(p=>batters[p]={r:0,b:0,f4:0,f6:0,out:false});
+players.forEach(p=>bowlers[p]={balls:0,r:0,w:0,maidens:0});
+
+function ensure22Players(){
+  while(players.length<22){
+    const n=players.length+1;
+    players.push("Player "+n);
+  }
+  players=players.slice(0,22);
+  players.forEach(p=>{
+    if(!batters[p]) batters[p]={r:0,b:0,f4:0,f6:0,out:false};
+    if(!bowlers[p]) bowlers[p]={balls:0,r:0,w:0,maidens:0};
+  });
+}
+
+function renderPlayerInputs(){
+  const box=document.getElementById("playerInputs");
+  box.innerHTML=players.map((p,i)=>`<div><label>PLAYER ${i+1}</label><input value="${p.replace(/"/g,'&quot;')}" oninput="changePlayerName(${i},this.value)"></div>`).join("");
+}
+function changePlayerName(index,value){
+  value=value.trim()||"Player "+(index+1);
+  const oldName=players[index];
+  if(oldName===value)return;
+
+  // Prevent duplicate player names.
+  if(players.some((p,i)=>i!==index && p.toLowerCase()===value.toLowerCase())){
+    alert("This player name is already used. Please enter a different name.");
+    renderNames();
+    return;
+  }
+
+  players[index]=value;
+  if(batters[oldName]){
+    batters[value]=batters[oldName];
+    delete batters[oldName];
+  } else {
+    batters[value]={r:0,b:0,f4:0,f6:0,out:false};
+  }
+  if(bowlers[oldName]){
+    bowlers[value]=bowlers[oldName];
+    delete bowlers[oldName];
+  } else {
+    bowlers[value]={balls:0,r:0,w:0,maidens:0};
+  }
+
+  if(striker===oldName)striker=value;
+  if(nonStriker===oldName)nonStriker=value;
+  if(bowler===oldName)bowler=value;
+
+  balls.forEach(x=>{
+    if(x.bat===oldName)x.bat=value;
+    if(x.bowl===oldName)x.bowl=value;
+  });
+
+  renderNames();
+  fillSelect("striker",striker);
+  fillSelect("nonStriker",nonStriker);
+  fillSelect("bowler",bowler);
+  render();
+  save();
+}
+function changeTeamName(team,value){
+  const clean=value.trim();
+  if(team==="A") teamAName=clean||"Team A";
+  else teamBName=clean||"Team B";
+  document.getElementById("teamA").value=teamAName;
+  document.getElementById("teamB").value=teamBName;
+  const title=document.getElementById("summaryTeam");
+  if(title) title.textContent=teamAName+" 1st Innings";
+  save();
+}
+function renderNames(){
+  document.getElementById("teamA").value=teamAName;
+  document.getElementById("teamB").value=teamBName;
+  renderPlayerInputs();
+}
+function fillSelect(id, selected){
+  const s=document.getElementById(id); s.innerHTML="";
+  players.forEach(p=>{let o=document.createElement("option");o.value=p;o.textContent=p;if(p===selected)o.selected=true;s.appendChild(o)});
+}
+ensure22Players();
+fillSelect("striker",striker);fillSelect("nonStriker",nonStriker);fillSelect("bowler",bowler);
+
+document.getElementById("striker").onchange=e=>striker=e.target.value;
+document.getElementById("nonStriker").onchange=e=>nonStriker=e.target.value;
+document.getElementById("bowler").onchange=e=>bowler=e.target.value;
+
+function rotate(){[striker,nonStriker]=[nonStriker,striker];document.getElementById("striker").value=striker;document.getElementById("nonStriker").value=nonStriker}
+function overCheck(){
+  if(legalBalls%6===0){bowlers[bowler].maidens += currentOver.every(x=>x.r===0 && !x.extra) ? 1:0; currentOver=[]; rotate();}
+}
+function record(event, runs, legal=true, extra=""){
+  total+=runs;
+  if(legal){legalBalls++;bowlers[bowler].balls++}
+  bowlers[bowler].r += (extra==="WD"||extra==="NB"||extra==="RUN")?runs:0;
+  balls.push({event,r:runs,legal,extra,bat:striker,bowl:bowler,over:Math.floor((legalBalls-1)/6),ball:legalBalls%6||6});
+  history.unshift({time:new Date().toLocaleTimeString(),event,score:`${total}/${wickets}`,overs:oversText()});
+  document.getElementById("lastBall").textContent=event;
+  overCheck(); render();
+}
+function addBall(r){
+  let b=batters[striker];
+  b.r+=r; b.b++;
+  if(r===4)b.f4++;
+  if(r===6)b.f6++;
+  // Normal batter runs are also added to the bowler's runs.
+  bowlers[bowler].r += r;
+  if(r%2) rotate();
+  record(r===0?"0":String(r),r,true,"");
+}
+function addExtra(type){
+  if(type==="WD"||type==="NB"){record(type,1,false,type)}
+  else {batters[striker].b++;record(type,0,true,type)}
+}
+function addWicket(){
+  const dismissed=striker;
+  batters[dismissed].b++;batters[dismissed].out=true;wickets++;
+  bowlers[bowler].w++;
+  record("W",0,true,"W");
+  fallWickets.push({batter:dismissed,score:`${total}/${wickets}`,over:oversText()});
+  let replacement=players.find(p=>!batters[p].out && p!==striker && p!==nonStriker);
+  if(replacement){striker=replacement;document.getElementById("striker").value=striker}
+}
+function oversText(){return Math.floor(legalBalls/6)+"."+(legalBalls%6)}
+function undo(){
+  if(!balls.length)return;
+  // Restore by replaying all actions except the last.
+  const old=balls.slice(0,-1); resetData(false);
+  old.forEach(x=>{
+    if(x.event==="W"){addWicket();}
+    else if(x.extra==="WD"||x.extra==="NB"){addExtra(x.extra)}
+    else if(["B","LB"].includes(x.extra)){addExtra(x.extra)}
+    else {addBall(x.r)}
+  });
+}
+function resetData(clearHistory=true){
+  players.forEach(p=>batters[p]={r:0,b:0,f4:0,f6:0,out:false});
+  players.forEach(p=>bowlers[p]={balls:0,r:0,w:0,maidens:0});
+  balls=[];fallWickets=[];total=0;wickets=0;legalBalls=0;currentOver=[];if(clearHistory)history=[];
+  striker=players[0];nonStriker=players[1];bowler=players[2];
+  fillSelect("striker",striker);fillSelect("nonStriker",nonStriker);fillSelect("bowler",bowler);
+}
+function resetMatch(){if(confirm("Reset the entire match?")){resetData();render()}}
+function loadSaved(){
+  try{
+    const s=JSON.parse(localStorage.getItem("cricketScorebook")||"null");
+    if(!s)return;
+
+    if(Array.isArray(s.players)){
+      players=s.players.slice(0,22);
+    }
+
+    if(s.batters)batters=s.batters;
+    if(s.bowlers)bowlers=s.bowlers;
+    if(Array.isArray(s.balls))balls=s.balls;
+    if(Array.isArray(s.history))history=s.history;
+    if(Array.isArray(s.fallWickets))fallWickets=s.fallWickets;
+    if(Number.isFinite(s.total))total=s.total;
+    if(Number.isFinite(s.wickets))wickets=s.wickets;
+    if(Number.isFinite(s.legalBalls))legalBalls=s.legalBalls;
+
+    // Upgrade old 11-player data to the new 22-player system.
+    ensure22Players();
+
+    striker=s.striker||players[0];
+    nonStriker=s.nonStriker||players[1];
+    bowler=s.bowler||players[2];
+    teamAName=s.teamAName||"Team A";
+    teamBName=s.teamBName||"Team B";
+
+    // If an old saved striker/bowler name no longer exists, use valid defaults.
+    if(!players.includes(striker))striker=players[0];
+    if(!players.includes(nonStriker))nonStriker=players[1];
+    if(!players.includes(bowler))bowler=players[2];
+
+    renderNames();
+    fillSelect("striker",striker);
+    fillSelect("nonStriker",nonStriker);
+    fillSelect("bowler",bowler);
+    save();
+  }catch(e){
+    ensure22Players();
+  }
+}
+function render(){
+  document.getElementById("score").textContent=`${total}/${wickets}`;
+  document.getElementById("oversText").textContent=oversText();
+  document.getElementById("crr").textContent=legalBalls?(total/(legalBalls/6)).toFixed(2):"0.00";
+  document.getElementById("batBody").innerHTML=players.map(p=>{
+    let b=batters[p], sr=b.b?(b.r/b.b*100).toFixed(1):"0.0";
+    return `<tr><td class="left">${p}</td><td>${b.r}</td><td>${b.b}</td><td>${b.f4}</td><td>${b.f6}</td><td>${sr}</td><td>${b.out?"OUT":(p===striker?"*":"not out")}</td></tr>`
+  }).join("");
+  document.getElementById("bowlBody").innerHTML=players.map(p=>{
+    let b=bowlers[p], o=Math.floor(b.balls/6)+"."+b.balls%6, eco=b.balls?(b.r/(b.balls/6)).toFixed(2):"0.00";
+    return `<tr><td class="left">${p}</td><td>${o}</td><td>${b.maidens}</td><td>${b.r}</td><td>${b.w}</td><td>${eco}</td></tr>`
+  }).join("");
+  document.getElementById("overs").innerHTML=balls.length?balls.map((x,i)=>`<span class="pill">${Math.floor(i/6)+1}.${(i%6)+1}: ${x.event}</span> `).join(""):"No balls yet.";
+  document.getElementById("historyBody").innerHTML=history.map(x=>`<tr><td>${x.time}</td><td>${x.event}</td><td>${x.score}</td><td>${x.overs}</td></tr>`).join("");
+  // Cricket summary (Cricsheet-style)
+  document.getElementById("summaryTeam").textContent = teamAName + " 1st Innings";
+  document.getElementById("summaryTeams").textContent = teamAName + " vs " + teamBName;
+  document.getElementById("summaryScore").innerHTML = `${total}/${wickets} <span>(${oversText()} Ov)</span>`;
+  document.getElementById("summaryTotal").innerHTML = `${total}/${wickets} <span>(${oversText()} Overs, RR: ${legalBalls?(total/(legalBalls/6)).toFixed(2):"0.00"})</span>`;
+
+  let extraCounts={b:0,lb:0,w:0,nb:0,p:0};
+  balls.forEach(x=>{
+    if(x.extra==="B")extraCounts.b += x.r||0;
+    if(x.extra==="LB")extraCounts.lb += x.r||0;
+    if(x.extra==="WD")extraCounts.w += x.r||0;
+    if(x.extra==="NB")extraCounts.nb += x.r||0;
+  });
+  const extraTotal=extraCounts.b+extraCounts.lb+extraCounts.w+extraCounts.nb+extraCounts.p;
+  document.getElementById("summaryExtras").textContent =
+    `${extraTotal} (b ${extraCounts.b}, lb ${extraCounts.lb}, w ${extraCounts.w}, nb ${extraCounts.nb}, p ${extraCounts.p})`;
+
+  const summaryBat=players.filter(p=>batters[p].b>0 || batters[p].out || p===striker || p===nonStriker);
+  document.getElementById("summaryBatBody").innerHTML = summaryBat.length ? summaryBat.map(p=>{
+    const b=batters[p], sr=b.b?(b.r/b.b*100).toFixed(2):"0.00";
+    return `<tr><td class="left"><b>${p}</b>${b.out?"":"*"}</td><td><b>${b.r}</b></td><td>${b.b}</td><td>${b.f4}</td><td>${b.f6}</td><td>${sr}</td></tr>`;
+  }).join("") : `<tr><td colspan="6">No batting yet.</td></tr>`;
+
+  const summaryBowl=players.filter(p=>bowlers[p].balls>0 || bowlers[p].w>0);
+  document.getElementById("summaryBowlBody").innerHTML = summaryBowl.length ? summaryBowl.map(p=>{
+    const b=bowlers[p], o=Math.floor(b.balls/6)+"."+b.balls%6, eco=b.balls?(b.r/(b.balls/6)).toFixed(2):"0.00";
+    const nb=balls.filter(x=>x.bowl===p && x.extra==="NB").length;
+    const wd=balls.filter(x=>x.bowl===p && x.extra==="WD").length;
+    return `<tr><td class="left">${p}</td><td>${o}</td><td>${b.maidens}</td><td>${b.r}</td><td>${b.w}</td><td>${nb}</td><td>${wd}</td><td>${eco}</td></tr>`;
+  }).join("") : `<tr><td colspan="8">No bowling yet.</td></tr>`;
+
+  document.getElementById("summaryYetToBat").textContent =
+    players.filter(p=>batters[p].b===0 && !batters[p].out && p!==striker && p!==nonStriker).join(", ") || "-";
+
+  document.getElementById("fallBody").innerHTML = fallWickets.length ? fallWickets.map(x=>
+    `<tr><td class="left">${x.batter}</td><td>${x.score}</td><td>${x.over}</td></tr>`
+  ).join("") : `<tr><td colspan="3">No wickets yet.</td></tr>`;
+
+  localStorage.setItem("cricketScorebook",JSON.stringify({players,batters,bowlers,balls,history,fallWickets,total,wickets,legalBalls,striker,nonStriker,bowler,teamAName,teamBName}));
+}
+function showTab(id,btn){
+  ["bat","bowl","ball","history"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");
+}
+loadSaved();
+render();
+</script>
+</body>
+</html>
